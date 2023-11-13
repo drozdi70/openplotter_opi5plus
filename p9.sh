@@ -24,7 +24,7 @@ cmake .. -DOPT_BUILD_SOAPY_SOURCE=ON -DOPT_BUILD_BLADERF_SOURCE=OFF -DOPT_BUILD_
 make -j4
 sudo make install
 sudo ldconfig
-cd ~/work/openplotter_opi5
+cd ~/work/openplotter_opi5plus
 sudo dpkg -i ./virtualgl_3.1_arm64.deb
 echo "Please choose 1 and Y,Y,Y and X next..."
 sudo /opt/VirtualGL/bin/vglserver_config 

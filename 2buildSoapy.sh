@@ -80,4 +80,4 @@ echo "SoapySDR - https://github.com/pothosware/SoapySDR/wiki"
 echo "SoapySDRPlay - https://github.com/pothosware/SoapySDRPlay3/wiki"
 echo " "
 echo "For both projects, click on Issues at the top of the page for help/support"
-cd ~/work/openplotter_opi5
+cd ~/work/openplotter_opi5plus

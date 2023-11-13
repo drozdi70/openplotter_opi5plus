@@ -32,4 +32,4 @@ mkdir -p ~/Dev/wxWidgets-staticlib
 make
 # install the library
 make install
-cd ~/work/openplotter_opi5
+cd ~/work/openplotter_opi5plus
