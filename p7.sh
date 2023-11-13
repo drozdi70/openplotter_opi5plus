@@ -6,7 +6,7 @@ sudo apt-get install git -y
 sudo apt-get install cmake -y
 sudo apt-get install libusb-1.0-0-dev -y
 sudo apt-get install build-essential -y
-cd ~/work
+cd ~/work/openplotter_opi5plus
 git clone git://git.osmocom.org/rtl-sdr.git
 cd rtl-sdr/
 mkdir build
