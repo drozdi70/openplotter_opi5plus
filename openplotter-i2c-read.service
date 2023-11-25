@@ -1,0 +1,12 @@
+[Unit]
+Description=OpenplotterI2CRead
+Wants=network.target
+After=network.target
+[Service]
+User=orangepi
+StandardOutput=journal
+StandardError=journal
+ExecStart=/home/orangepi/work/i2c_read.sh
+Restart=on-failure
+[Install]
+WantedBy=multi-user.target
