@@ -15,11 +15,11 @@ print("Board id is: ",board_id)
 print("Digital IO ok!")
 
 # Try to create an I2C device
-i2c = busio.I2C(board.I2C5_SCL, board.I2C5_SDA)
-print("I2C  bus 5 ok!")
+i2c = busio.I2C(board.I2C2_SCL_M0, board.I2C2_SDA_M0)
+print("I2C  bus 2 ok!")
 
 i2c = busio.I2C(board.SCL, board.SDA)
-print("I2C default ok!")
+print("I2C default 2 ok!")
 
 # Try to create an SPI device
 #spi = busio.SPI(board.SCLK, board.MOSI, board.MISO) --not needed now
