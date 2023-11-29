@@ -1,0 +1,1260 @@
+﻿Board: OrangePi 5 Plus (RS3588), 16GB, NVMe 256GB, Wifi AX210NGW
+
+Author: DroZDi
+Date: 05.11.2023
+OS: Armbian_23.8.2_Orangepi5-plus_bookworm_legacy_5.10.160_xfce_desktop.img.xz
+
+Document Version: 3.0
+
+-----------------OPEN PLOTTER COMPONENTS------------------
+https://github.com/openplotter
+
+OpenPlotter Settings 4.0.10
+Openplotter I2C 3.3.12
+Openplotter Pypilot 3.2.13
+Pypilot 0.42
+----------------------------------------------------------
+https://github.com/drozdi70/openplotter_opi5plus
+
+
+!!!
+All commands executed from orangepi user (local user)
+Needed package files.tar.gz which contents needed files to copy
+Files copied from files.tar.gz should have the same rights (chmod) and the same user (chown) as those marekd for replace
+Content of files.tar.gz:
+
+files/
+├── boot
+│   └── armbianEnv.txt
+├── etc
+│   ├── default
+│   │   └── gpsd
+│   ├── modprobe.d
+│   │   ├── no-rtl.conf
+│   │   └── no-sdr.conf
+│   ├── systemd
+│   │   └── system
+│   │       ├── aiscatcher.service
+│   │       └── openplotter-i2c-read.service
+│   └── udev
+│       └── rules.d
+│           └── 99-gps.rules
+├── usr
+│   └── lib
+│       └── python3
+│           └── dist-packages
+│               ├── openplotterI2c
+│               │   ├── gpio.py
+│               │   ├── openplotterI2c.py
+│               │   ├── openplotterI2cRead.py
+│               │   └── startup.py
+│               ├── openplotterPypilot
+│               │   ├── gpio.py
+│               │   └── openplotterPypilot.py
+│               ├── openplotterSdrVhf
+│               │   ├── openplotterSdrVhf.py
+│               │   ├── service.py
+│               │   └── startup.py
+│               └── openplotterSettings
+│                   └── openplotterSettings.py
+└── work
+    ├── aiscatcher.conf
+    ├── blinka_test.py
+    ├── i2c_read.sh
+    ├── start-ais.sh
+    └── vnc_start.sh
+
+
+
+!!!
+========================================
+Content:
+
+1. OS install
+2. NVMe (optional)
+3. Update/Upgrade OS
+4. VNC 
+5. GPS (UART0_M2)
+6. I2C (I2C5_M3)
+7. RTL SDR
+8. SDR PLAY
+9. SDR++
+10. GQRX
+11. AIS catcher
+12. FLDIGI
+13. ADAFRUIT BLINKA
+14. OPENPLOTTER SETTINGS
+15. OPENPLOTTER I2C
+16. OPENPLOTTER PYPILOT 
+17. OPENPLOTTER SDR VHF
+18. OTHER
+
+========================================
+
+1. OS install
+
+Download Armbian image from https://imola.armbian.com/dl/orangepi5-plus/archive/ or from  https://github.com/armbian/community
+->  Armbian_23.8.2_Orangepi5-plus_bookworm_legacy_5.10.160_xfce_desktop.img.xz (orange pi 5 plus)
+burn microSD card with (RasberryImager or other tool)
+
+root password, local user (orangepi), wifi connection
+
+
+2. NVMe 
+
+If you dont have NVMe disk installed in OrangePI 5 please go to the point 3
+
+root@orangepi5-plus:~# sudo fdisk -l /dev/nvme0n1
+Disk /dev/nvme0n1: 238.47 GiB, 256060514304 bytes, 500118192 sectors
+Disk model: SAMSUNG MZVLQ256HBJD-00BH1
+Units: sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 16384 bytes / 131072 bytes
+Disklabel type: gpt
+Disk identifier: 1A951762-C689-489C-B406-E95F48766ABE
+
+
+
+sudo gdisk /dev/nvme0n1
+p (print)
+d 1
+w
+Y
+
+
+sudo gdisk /dev/mtdblock0
+p (print) if empty nothing if partitions exist: d 1, d 2, etc to delete all of them
+w
+Y
+
+sudo nand-sata-install
+-> Install/Update the bootloader on SPI Flash (MTD flash)
+
+orangepi@orangepi5-plus:~$ sudo fdisk -l /dev/mtdblock0
+Disk /dev/mtdblock0: 16 MiB, 16777216 bytes, 32768 sectors
+Units: sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+Disklabel type: gpt
+Disk identifier: 5946AB5B-ED9E-4B9C-AA86-A9AE1D51AE8D
+
+Device           Start   End Sectors  Size Type
+/dev/mtdblock0p1    64  7167    7104  3,5M Linux filesystem
+/dev/mtdblock0p2  7168  7679     512  256K Linux filesystem
+/dev/mtdblock0p3  7680  8063     384  192K Linux filesystem
+/dev/mtdblock0p4  8064  8127      64   32K Linux filesystem
+/dev/mtdblock0p5  8128  8191      64   32K Linux filesystem
+/dev/mtdblock0p6  8192 16383    8192    4M Linux filesystem
+/dev/mtdblock0p7 16384 32734   16351    8M Linux filesystem
+
+
+copy Armbian image to for exmaple /home/orangepi/images (scp/ftp)
+
+if image is in xz format: 
+sudo apt install xz-utils
+xz -d -v filename.tar.xz 
+
+cd /home/orangepi/images
+sudo dd bs=1M if=Armbian_23.8.2_Orangepi5-plus_bookworm_legacy_5.10.160_xfce_desktop.img of=/dev/nvme0n1 status=progress (orange pi 5 plus)
+
+
+sudo shutdown -h now
+
+remove microSD card
+
+reboot
+
+3. Update/Upgrade OS
+
+!!!! login without password
+sudo visudo
+add:
+orangepi ALL=(ALL) NOPASSWD: ALL
+!!!!
+
+mkdir work
+cd work
+
+sudo apt-get install git-core
+sudo apt-get install git
+git clone  https://github.com/drozdi70/openplotter_opi5plus.git
+
+cd /home/orangepi/work/openplotter_opi5plusplus
+./install.sh --not needed
+./p3.sh
+
+!!!!! content of p3.sh script:
+sudo add-apt-repository ppa:liujianfeng1994/panfork-mesa
+sudo add-apt-repository ppa:liujianfeng1994/rockchip-multimedia
+sudo apt update
+sudo apt dist-upgrade
+sudo apt install mali-g610-firmware rockchip-multimedia-config
+sudo apt-get install armbian-firmware-full (sudo apt-get remove armbian-firmware if conflicts)
+##Ubuntu: sudo apt-get install linux-firmware
+sudo apt update && sudo apt upgrade -y
+sudo apt-get autoremove
+sudo apt clean
+sudo apt-get autoclean
+sudo apt-get full-upgrade
+sudo apt-get dist-upgrade
+sudo apt-get install build-essential
+sudo apt-get autoremove
+sudo apt clean
+sudo apt-get autoclean
+reboot
+!!!!! p3.sh end
+
+
+sudo armbian-config -> system -> Update all package and firmware
+reboot
+
+
+NVMe disk speed test -> if NVMe not installed please skip this step
+
+./p3A.sh
+
+!!!!! p3A.sh script:
+sudo curl https://raw.githubusercontent.com/TheRemote/PiBenchmarks/master/Storage.sh | sudo bash
+!!!! p3A.sh script end
+
+     Category                  Test                      Result
+HDParm                    Disk Read                 1428.10 MB/s
+HDParm                    Cached Disk Read          1244.77 MB/s
+DD                        Disk Write                414 MB/s
+FIO                       4k random read            122634 IOPS (490538 KB/s)
+FIO                       4k random write           52919 IOPS (211679 KB/s)
+IOZone                    4k read                   194035 KB/s
+IOZone                    4k write                  136037 KB/s
+IOZone                    4k random read            42596 KB/s
+IOZone                    4k random write           79853 KB/s
+
+                          Score: 27426
+
+
+
+4. VNC 
+
+!!!!!!!!!!!! comments to p4.sh script
+sudo apt-get install --no-install-recommends gnome-panel gnome-settings-daemon metacity nautilus gnome-terminal gnome-core xvfb -y
+sudo apt-get -y install xorg lightdm xfce4 tango-icon-theme gnome-icon-theme dbus-x11 xfce4-goodies -y
+sudo apt-get install xfonts-base -y
+sudo apt-get install tightvncserver xterm -y
+sudo apt-get install tigervnc-tools -y
+touch ~/.Xresources
+
+
+
+create start vnc script vnc_start.sh:
+#!/usr/bin/bash
+vncserver :1
+
+or vncserver :1 -localhost=no -geometry 1280x800
+
+chmod 755 vnc_start.sh
+
+in /home/orangepi/.vnc 
+adjust script xstartup:
+#!/bin/sh
+unset SESSION_MANAGER
+unset DBUS_SESSION_BUS_ADDRESS
+/usr/bin/startxfce4
+[ -x /etc/vnc/xstartup ] && exec /etc/vnc/xstartup
+[ -r $HOME/.Xresources ] && xrdb $HOME/.Xresources
+x-window-manager &
+
+chmod 755 xstartup
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+
+as orangpi pi run ./p4.sh in /home/orangepi/work/openplotter_opi5plus
+
+next run vncserver to setup vnc password
+start vnc -> ./vnc_start.sh
+
+vncviewer adres_ip:5901 to connect remotely
+
+
+
+5. GPS (UART6_M1)
+
+!!!!!!! here are some comments to p5.sh  script
+Pins: 2,8,10,14
+Pins 4 and 6 used by Cooler/Fan
+
+GPS BN-880Q
+
+pins in face, starting from left to right:
+SDA GND TX RX 5V SCL and as above
+
+SDA	-> 3 not used
+SCL 	-> 5 not used
+5V 	-> 4/2
+GND	-> 6/14
+RX	-> 8
+TX	-> 10 
+
+X 14 10 8 2 X
+
+set in /boot/orangepiEnv.txt
+overlays=uart6-m1
+
+overlays=i2c2-m0 uart6-m1
+
+
+sudo curl https://raw.githubusercontent.com/orangepi-xunlong/linux-orangepi/orange-pi-5.10-rk3588/arch/arm64/boot/dts/rockchip/overlay/rk3588-i2c2-m0.dts -o rk3588-i2c2-m0.dts
+sudo armbian-add-overlay rk3588-i2c2-m0.dts
+
+sudo curl https://raw.githubusercontent.com/orangepi-xunlong/linux-orangepi/orange-pi-5.10-rk3588/arch/arm64/boot/dts/rockchip/overlay/rk3588-uart6-m1.dts -o rk3588-uart6-m1.dts
+sudo armbian-add-overlay rk3588-uart6-m1.dts
+
+sudo curl https://raw.githubusercontent.com/orangepi-xunlong/linux-orangepi/orange-pi-5.10-rk3588/arch/arm64/boot/dts/rockchip/overlay/rk3588-uart4-m0.dts -o rk3588-uart4-m0.dts
+sudo armbian-add-overlay rk3588-uart4-m0.dts
+sudo apt-get install gpsd gpsd-clients minicom
+sudo adduser orangepi dialout
+
+Create a new file in /etc/udev/rules.d called 99-gps.rules with the following:
+
+KERNEL=="ttyS6", SYMLINK+="gps0",GROUP="dialout", MODE="0660" (orange pi 5 plus)
+
+sudo reboot
+
+sudo systemctl stop serial-getty@ttyS6.service (orange pi 5 plus)
+sudo systemctl disable serial-getty@ttyS6.service (orange pi 5 plus)
+
+$ sudo vi /etc/default/gpsd
+START_DAEMON="true"
+USBAUTO="false"
+DEVICES="/dev/gps0"
+GPSD_OPTIONS="-n"
+GPSD_SOCKET="/var/run/gpsd.sock"
+
+chmod 444 /etc/default/gpsd
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+as orangepi run ./p5.sh in /home/orangepi/work/openplotter_opi5plus
+
+sudo gpsmon
+sudo cgps -s
+sudo cgps -um
+
+orangepi@orangepi5-plus:~$ ls -ltr /dev/ttyS*
+crw-rw---- 1 root dialout 4, 68 11-13 17:47 /dev/ttyS4
+crw-rw---- 1 root dialout 4, 73 11-13 17:47 /dev/ttyS9
+crw-rw---- 1 root dialout 4, 70 11-13 17:47 /dev/ttyS6 ->>> gps
+
+6. I2C (I2C2_M0)
+
+
+!!!! comments to p6.sh script
+
+GPIO pinout -> http://www.orangepi.org/html/hardWare/computerAndMicrocontrollers/details/Orange-Pi-5.html
+enabling in /boot/armbianEnv.txt add:
+overlays=rk3588-i2c2-m0 (as root)
+
+Pins: 1,3,5,9
+1 +3,3V
+3 SDA
+5 SCL
+9 GND
+
+sudo apt install i2c-tools -y
+
+!!!!!!!!!!!!!!!!!!!
+
+as orangepi run ./p6.sh in /home/orangepi/work/openplotter_opi5plus
+
+root@orangepi5:~# ls -ltr /dev/i2*
+crw-rw---- 1 root i2c 89,  0 Mar 25 21:55 /dev/i2c-0
+crw-rw---- 1 root i2c 89,  9 Mar 25 21:55 /dev/i2c-9
+crw-rw---- 1 root i2c 89, 10 Mar 25 21:55 /dev/i2c-10
+crw-rw---- 1 root i2c 89,  5 Mar 25 21:55 /dev/i2c-5
+crw-rw---- 1 root i2c 89,  2 Mar 25 21:55 /dev/i2c-2
+crw-rw---- 1 root i2c 89,  7 Mar 25 21:55 /dev/i2c-7
+crw-rw---- 1 root i2c 89,  6 Mar 25 21:55 /dev/i2c-6
+
+
+root@orangepi5:~# i2cdetect -l
+i2c-0   i2c             rk3x-i2c                                I2C adapter
+i2c-2   i2c             rk3x-i2c                                I2C adapter
+i2c-5   i2c             rk3x-i2c                                I2C adapter
+i2c-6   i2c             rk3x-i2c                                I2C adapter
+i2c-7   i2c             rk3x-i2c                                I2C adapter
+i2c-9   i2c             fde50000.dp                             I2C adapter
+i2c-10  i2c             ddc                                     I2C adapter
+
+
+orangepi@orangepi5-plus:~/work/openplotter_opi5plus$ sudo i2cdetect -y 2
+     0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f
+00:                         -- -- -- -- -- -- -- --
+10: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+20: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+30: -- -- -- -- -- -- -- -- 38 -- -- -- -- -- -- --
+40: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+50: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+60: -- -- -- -- -- -- -- -- 68 -- -- -- -- -- -- --
+70: -- -- -- -- -- -- -- 77
+
+
+IMU: ICM-20948 (address 0x68, pypilot 3.2.6, SEN-15335) 
+BMP280 - 0x77 
+AHT20  - 0x38 
+
+To be used later in points: 13. ADAFRUIT BLINKA and 15. OPENPLOTTER I2C
+/usr/local/lib/python3.9/dist-packages
+sudo pip3 install adafruit-circuitpython-ahtx0
+sudo pip3 install adafruit-circuitpython-htu21d
+
+7. RTL SDR
+
+!!!!!!!!! here are some commants to p7.sh  script
+cat <<EOF >no-rtl.conf
+blacklist dvb_usb_rtl28xxu
+blacklist rtl2832
+blacklist rtl2830
+EOF
+
+sudo apt-get update
+sudo apt-get upgrade
+sudo mv no-rtl.conf /etc/modprobe.d/
+sudo apt-get install git-core
+sudo apt-get install git
+sudo apt-get install cmake
+sudo apt-get install libusb-1.0-0-dev
+sudo apt-get install build-essential
+
+cd ~/work
+git clone git://git.osmocom.org/rtl-sdr.git
+cd rtl-sdr/
+mkdir build
+cd build
+cmake ../ -DINSTALL_UDEV_RULES=ON
+make
+sudo make install
+sudo ldconfig
+`sudo cp ../../rtl-sdr/rtl-sdr.rules /etc/udev/rules.d/
+sudo reboot
+!!!!!!!!!!
+
+
+as orangepi run ./p7.sh in /home/orangepi/work/openplotter_opi5plus
+
+
+connect RTL-SDR dongle and perform test:
+
+orangepi@orangepi5:~/work$ rtl_test
+Found 1 device(s):
+  0:  Realtek, RTL2838UHIDIR, SN: 00000001
+
+Using device 0: Generic RTL2832U OEM
+Found Rafael Micro R820T tuner
+Supported gain values (29): 0.0 0.9 1.4 2.7 3.7 7.7 8.7 12.5 14.4 15.7 16.6 19.7 20.7 22.9 25.4 28.0 29.7 32.8 33.8 36.4 37.2 38.6 40.2 42.1 43.4 43.9 44.5 48.0 49.6
+[R82XX] PLL not locked!
+Sampling at 2048000 S/s.
+
+Info: This tool will continuously read from the device, and report if
+samples get lost. If you observe no further output, everything is fine.
+
+Reading samples in async mode...
+^CSignal caught, exiting!
+
+User cancel, exiting...
+Samples per million lost (minimum): 0
+
+orangepi@orangepi5-plus:~$ lsusb
+Bus 006 Device 002: ID 05e3:0620 Genesys Logic, Inc. GL3523 Hub
+Bus 006 Device 001: ID 1d6b:0003 Linux Foundation 3.0 root hub
+Bus 005 Device 004: ID 0bda:2838 Realtek Semiconductor Corp. RTL2838 DVB-T
+Bus 005 Device 003: ID 1df7:3000 SDRplay RSP1a
+Bus 005 Device 002: ID 05e3:0610 Genesys Logic, Inc. Hub
+Bus 005 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub
+Bus 004 Device 001: ID 1d6b:0001 Linux Foundation 1.1 root hub
+Bus 002 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub
+Bus 003 Device 001: ID 1d6b:0001 Linux Foundation 1.1 root hub
+Bus 001 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub
+
+
+
+8. SDR PLAY
+
+
+!!!!!!!!! here are some comments to p8.sh/p8A.sh  scripts
+
+sudo apt-get update -y
+sudo apt-get upgrade -y
+sudo apt install -y cmake
+sudo apt-get install freeglut3-dev -y
+
+Needed file SDRplay_RPi_Scripts_v0.3.zip --download and for 64bit installation change name in the script 1installationAPI.sh with
+SDRplay_RSP_API-ARM64-3.07.1.run (arm 64bit)  (instead of SDRplay_RSP_API-ARM32-3.07.2.run)
+
+next execute:
+./1installAPI.sh
+(reboot)
+./2buildSoapy.sh
+./4buildWidgets.sh
+sudo ldconfig
+#./4buildWidgets_3.1.5.sh
+./4buildWidgets_3.2.2.1.sh (from files)
+sudo ldconfig
+
+in /etc/modprobe.d/no-sdr.conf put
+
+blacklist sdr_msi3101
+blacklist msi001
+blacklist msi2500
+
+
+Adding module sdr-rtl to SoapySDRUtil:
+cd work
+git clone https://github.com/pothosware/SoapyRTLSDR.git
+cd SoapyRTLSDR
+mkdir build
+cd build
+cmake ..
+make -j4
+sudo make install
+sudo ldconfig
+
+!!!!!!!!!!!!!!!!!!!!!!!!
+
+as orangepi run ./p8.sh in /home/orangepi/work/openplotter_opi5plus
+
+as orangepi run ./p8A.sh in /home/orangepi/work/openplotter_opi5plus
+
+checks:
+sudo systemctl status/start/stop/enable/disable sdrplay
+
+SoapySDRUtil --check=sdrplay
+SoapySDRUtil --probe="driver=sdrplay"
+SoapySDRUtil --probe="driver=rtlsdr"
+
+connect SDRPLAY device and check:
+
+orangepi@orangepi5:~$ SoapySDRUtil --probe
+######################################################
+##     Soapy SDR -- the SDR abstraction library     ##
+######################################################
+
+Probe device
+[INFO] devIdx: 0
+[INFO] SerNo: B0002P0001
+[INFO] hwVer: 1
+[INFO] rspDuoMode: 0
+[INFO] tuner: 1
+[INFO] rspDuoSampleFreq: 0.000000
+
+----------------------------------------------------
+-- Device identification
+----------------------------------------------------
+  driver=SDRplay
+  hardware=RSP1
+  sdrplay_api_api_version=3.070000
+  sdrplay_api_hw_version=1
+
+----------------------------------------------------
+-- Peripheral summary
+----------------------------------------------------
+  Channels: 1 Rx, 0 Tx
+  Timestamps: NO
+  Other Settings:
+     * RF Gain Select - RF Gain Select
+       [key=rfgain_sel, default=1, type=string, options=(0, 1, 2, 3)]
+     * IQ Correction - IQ Correction Control
+       [key=iqcorr_ctrl, default=true, type=bool]
+     * AGC Setpoint - AGC Setpoint (dBfs)
+       [key=agc_setpoint, default=-30, type=int, range=[-60, 0]]
+
+----------------------------------------------------
+-- RX Channel 0
+----------------------------------------------------
+  Full-duplex: NO
+  Supports AGC: YES
+  Stream formats: CS16, CF32
+  Native format: CS16 [full-scale=32767]
+  Antennas: RX
+  Corrections: DC removal
+  Full gain range: [0, 42] dB
+    IFGR gain range: [20, 59] dB
+    RFGR gain range: [0, 3] dB
+  Full freq range: [0.01, 2000] MHz
+    RF freq range: [0.01, 2000] MHz
+    CORR freq range:  MHz
+  Sample rates: 0.0625, 0.096, 0.125, 0.192, 0.25, ..., 6, 7, 8, 9, 10 MSps
+  Filter bandwidths: 0.2, 0.3, 0.6, 1.536, 5, 6, 7, 8 MHz
+
+
+orangepi@orangepi5:~$ SoapySDRUtil --probe="driver=sdrplay"
+######################################################
+##     Soapy SDR -- the SDR abstraction library     ##
+######################################################
+
+Probe device driver=sdrplay
+[INFO] devIdx: 0
+[INFO] SerNo: 1804066095
+[INFO] hwVer: 255
+[INFO] rspDuoMode: 0
+[INFO] tuner: 1
+[INFO] rspDuoSampleFreq: 0.000000
+
+----------------------------------------------------
+-- Device identification
+----------------------------------------------------
+  driver=SDRplay
+  hardware=RSP1A
+  sdrplay_api_api_version=3.070000
+  sdrplay_api_hw_version=255
+
+----------------------------------------------------
+-- Peripheral summary
+----------------------------------------------------
+  Channels: 1 Rx, 0 Tx
+  Timestamps: NO
+  Other Settings:
+     * RF Gain Select - RF Gain Select
+       [key=rfgain_sel, default=4, type=string, options=(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)]
+     * IQ Correction - IQ Correction Control
+       [key=iqcorr_ctrl, default=true, type=bool]
+     * AGC Setpoint - AGC Setpoint (dBfs)
+       [key=agc_setpoint, default=-30, type=int, range=[-60, 0]]
+     * BiasT Enable - BiasT Control
+       [key=biasT_ctrl, default=true, type=bool]
+     * RfNotch Enable - RF Notch Filter Control
+       [key=rfnotch_ctrl, default=true, type=bool]
+     * DabNotch Enable - DAB Notch Filter Control
+       [key=dabnotch_ctrl, default=true, type=bool]
+
+----------------------------------------------------
+-- RX Channel 0
+----------------------------------------------------
+  Full-duplex: NO
+  Supports AGC: YES
+  Stream formats: CS16, CF32
+  Native format: CS16 [full-scale=32767]
+  Antennas: RX
+  Corrections: DC removal
+  Full gain range: [0, 48] dB
+    IFGR gain range: [20, 59] dB
+    RFGR gain range: [0, 9] dB
+  Full freq range: [0.001, 2000] MHz
+    RF freq range: [0.001, 2000] MHz
+    CORR freq range:  MHz
+  Sample rates: 0.0625, 0.096, 0.125, 0.192, 0.25, ..., 6, 7, 8, 9, 10 MSps
+  Filter bandwidths: 0.2, 0.3, 0.6, 1.536, 5, 6, 7, 8 MHz
+
+
+
+
+9. SDR++
+
+!!!!!!!!! here are some comments to p9.sh/p9A.sh  scripts
+
+sudo apt install libfftw3-dev libglfw3-dev libvolk2-dev libsoapysdr-dev libairspyhf-dev libiio-dev libad9361-dev librtaudio-dev libhackrf-dev -y
+sudo apt install libglew-dev libglu-dev libglu1-mesa-dev -y
+sudo apt install libglfw3-dev libglew-dev libairspyhf-dev libiio-dev libad9361-dev libairspy-dev librtlsdr-dev portaudio19-dev libzstd1 libzstd-dev limesuite gcc -y
+sudo apt install libfftw3-dev libglfw3-dev libvolk2-dev libvolk1-dev  -y
+
+cd ~/work
+git clone https://github.com/drowe67/codec2.git
+cd codec2
+mkdir build
+cd build
+cmake ../
+make -j4
+sudo make install
+sudo ldconfig
+
+cd ~/work
+git clone https://github.com/AlexandreRouma/SDRPlusPlus.git
+cd SDRPlusPlus
+mkdir build
+cd build
+cmake .. -DOPT_BUILD_SOAPY_SOURCE=ON -DOPT_BUILD_BLADERF_SOURCE=OFF -DOPT_BUILD_NEW_PORTAUDIO_SINK:BOOL=ON -DOPT_BUILD_M17_DECODER:BOOL=ON
+make -j4
+sudo make install
+sudo ldconfig
+
+
+SDR++ might not work under VNC only on HDMI cable connection to monitor
+
+Fix:
+sudo apt-get install libgl1-mesa-glx libegl1-mesa libgles2-mesa libgles2-mesa-dev -y
+sudo apt-get install mesa-utils libgl1-mesa-glx -y
+sudo apt-get install llvm llvm-dev -y
+
+download virtualgl debian package from https://sourceforge.net/projects/virtualgl/files/3.1/ (virtualgl_3.1_arm64.deb)
+
+sudo apt-get update -y
+sudo apt-get install x11-xserver-utils -y
+
+sudo dpkg -i virtualgl_3.1_arm64.deb
+sudo reboot
+sudo /opt/VirtualGL/bin/vglserver_config (1 and Y)
+sudo reboot
+as root:
+touch /root/.Xauthority
+xauth merge /etc/opt/VirtualGL/vgl_xauth_key
+xdpyinfo -display :0
+/opt/VirtualGL/bin/glxinfo -display :0 -c
+cd /etc/opt
+chmod 755 VirtualGL
+
+as orangepi:
+cd 
+touch .Xauthority
+xauth merge /etc/opt/VirtualGL/vgl_xauth_key
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+as orangepi run ./p9.sh in /home/orangepi/work/openplotter_opi5plus
+
+as orangepi run ./p9A.sh in /home/orangepi/work/openplotter_opi5plus
+
+
+run in termianl: vglrun sdrpp 
+
+10. GQRX
+
+
+!!!!!!!!! here are some comments to p10.sh  script
+
+sudo apt-get update -y
+sudo apt-get install -y cmake gnuradio-dev gr-osmosdr libqt5svg5-dev libpulse-dev -y
+sudo apt-get install qtbase5-dev -y
+sudo apt-get install qtdeclarative5-dev -y
+sudo apt-get install libqt5svg5-dev -y
+sudo apt-get install libsndfile1 libsndfile1-dev -y
+
+cd ~/work
+git clone https://github.com/gqrx-sdr/gqrx.git
+cd gqrx
+mkdir build
+cd build
+export CXXFLAGS=-O2
+cmake ..
+make -j4
+sudo make install
+sudo ldconfig
+
+cd ~/work
+git clone git://git.osmocom.org/gr-osmosdr
+cd gr-osmosdr/
+mkdir build
+cd build/
+cmake ../
+make -j4
+sudo make install
+sudo ldconfig
+!!!!!!!!!!!!!!!!!!
+
+as orangepi run ./p10.sh in /home/orangepi/work/openplotter_opi5plus
+
+For SDRPlay devices please put under Other input device window:
+soapy=0,driver=sdrplay
+
+
+
+11. AIS catcher
+
+!!!!!!!!! here are some comments to p11.sh  script
+cd ~/work
+git clone https://github.com/jvde-github/AIS-catcher.git
+cd AIS-catcher
+mkdir build
+cd build
+cmake ..
+make -j4
+sudo make install
+sudo ldconfig
+
+!!!!!!!!!!!!!!!!!!!!!!!!!
+as orangepi run ./p11.sh in /home/orangepi/work/openplotter_opi5plus
+
+orangepi@orangepi5:~/work/openplotter_opi5plus$  AIS-catcher -l
+AIS-catcher (build Nov  6 2023) v0.54-26-gab7eadbf
+(C) Copyright 2021-2023 jvde-github and other contributors
+This is free software; see the source for copying conditions.There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+Found 2 device(s):
+0: Realtek, RTL2838UHIDIR, SN: AIS00001
+1: SDRPLAY, RSP1A, SN: 1804066095
+
+
+orangepi@orangepi5:~/work$ more aiscatcher.conf (sdrplay)
+ -d 1804066095
+ -v 10
+ -M DT
+ -gs LNASTATE 3 AGC on
+ -s 2304K
+ -u 127.0.0.1 10110
+ -a 192K
+ -q
+
+
+
+orangepi@orangepi5:~/work$ more aiscatcher.conf (RTLSDR3)
+ -d AIS00001
+ -v 10
+ -M DT
+ -s 1536K
+ -u 127.0.0.1 10110
+ -a 192K
+ -q
+
+
+
+chmod 644 aiscatcher.conf
+
+-d device_name taken from above SN!!!!
+
+orangepi@orangepi5:~/work$ more start-ais.sh
+#!/bin/bash
+cd /home/orangepi/work
+CONFIG=""
+while read -r line; do CONFIG="${CONFIG} $line"; done < aiscatcher.conf
+/usr/local/bin/AIS-catcher ${CONFIG}
+
+chmod 755 start-ais.sh
+
+service (as root):
+cd /etc/systemd/system
+aiscatcher.service:
+# AIS-catcher service for systemd
+[Unit]
+Description=AIS-catcher
+Wants=network.target
+After=network.target
+[Service]
+User=orangepi
+RuntimeDirectory=/home/orangepi/work
+RuntimeDirectoryMode=0755
+ExecStart=/bin/bash /home/orangepi/work/start-ais.sh
+SyslogIdentifier=aiscatcher
+Type=simple
+Restart=on-failure
+RestartSec=30
+RestartPreventExitStatus=64
+Nice=-5
+[Install]
+WantedBy=default.target
+
+sudo systemctl daemon-reload
+sudo systemctl enable aiscatcher.service
+sudo systemctl start aiscatcher.service
+
+
+!!!!!!!!!!!!!!!!!!
+
+as orangepi run ./p11.sh in /home/orangepi/work/openplotter_opi5plus
+
+
+orangepi@orangepi5-plus:~/work/openplotter_opi5plus$ sudo systemctl status aiscatcher.service
+● aiscatcher.service - AIS-catcher
+     Loaded: loaded (/etc/systemd/system/aiscatcher.service; enabled; preset: enabled)
+     Active: active (running) since Mon 2023-11-13 23:27:33 CET; 1min 24s ago
+   Main PID: 8342 (bash)
+      Tasks: 5 (limit: 18529)
+     Memory: 13.8M
+        CPU: 15.967s
+     CGroup: /system.slice/aiscatcher.service
+             ├─8342 /bin/bash /home/orangepi/work/start-ais.sh
+             └─8343 /usr/local/bin/AIS-catcher -d AIS00001 -v 10 -M DT -gs LNASTATE 3 AGC on -s 2304k -u 127.0.0.1 10110 -a 192K
+
+lis 13 23:27:34 orangepi5-plus aiscatcher[8343]: Settings  : rate 2304K bw 192K format CU8 tuner AUTO rtlagc ON biastee OFF buffer_count 24
+lis 13 23:27:34 orangepi5-plus aiscatcher[8343]: Model #0 -> (Src: 1, Grp: 1): [AIS engine v0.54] ps_ema ON afc_wide ON droop ON fp_ds OFF dsk OFF
+lis 13 23:27:44 orangepi5-plus aiscatcher[8343]: [AIS engine v0.54 #0-0]                 received: 0 msgs, total: 0 msgs, rate: 0 msg/s
+lis 13 23:27:54 orangepi5-plus aiscatcher[8343]: [AIS engine v0.54 #0-0]                 received: 0 msgs, total: 0 msgs, rate: 0 msg/s
+lis 13 23:28:04 orangepi5-plus aiscatcher[8343]: [AIS engine v0.54 #0-0]                 received: 0 msgs, total: 0 msgs, rate: 0 msg/s
+lis 13 23:28:14 orangepi5-plus aiscatcher[8343]: [AIS engine v0.54 #0-0]                 received: 0 msgs, total: 0 msgs, rate: 0 msg/s
+lis 13 23:28:24 orangepi5-plus aiscatcher[8343]: [AIS engine v0.54 #0-0]                 received: 0 msgs, total: 0 msgs, rate: 0 msg/s
+lis 13 23:28:34 orangepi5-plus aiscatcher[8343]: [AIS engine v0.54 #0-0]                 received: 0 msgs, total: 0 msgs, rate: 0 msg/s
+lis 13 23:28:44 orangepi5-plus aiscatcher[8343]: [AIS engine v0.54 #0-0]                 received: 0 msgs, total: 0 msgs, rate: 0 msg/s
+lis 13 23:28:54 orangepi5-plus aiscatcher[8343]: [AIS engine v0.54 #0-0]                 received: 0 msgs, total: 0 msgs, rate: 0 msg/s
+
+
+
+12. FLDIGI
+
+!!!!!!!!! here are some comments to p12.sh  script
+
+sudo apt-get update -y
+sudo apt-get install fldigi -y
+
+!!!!!!!!!!!!!!!!!!!!!!!!!
+as orangepi run ./p12.sh in /home/orangepi/work/openplotter_opi5plus
+
+13. ADAFRUIT BLINKA
+
+!!!!!!!!! here are some comments to p13.sh  script
+sudo apt-get update -y
+sudo apt-get upgrade -y
+sudo pip3 install --upgrade setuptools 
+sudo apt-get install -y python3-smbus python3-dev i2c-tools
+sudo adduser orangepi i2c
+sudo apt-get install -y python3 git python3-pip
+sudo apt-get install libgpiod2 python3-libgpiod
+sudo pip3 install gpiod 
+
+sudo apt-get update
+sudo apt-get upgrade
+sudo apt install python3-pip
+
+cd ~/work
+git clone https://github.com/orangepi-xunlong/wiringOP.git -b next
+cd wiringOP
+sudo ./build clean
+sudo ./build
+
+
+pip3 install adafruit-blinka
+pip3 install --upgrade adafruit-blinka adafruit-platformdetect
+#sudo python3 -m pip install --force-reinstall adafruit-blinka
+pip3 install adafruit-circuitpython-ahtx0
+pip3 install adafruit-circuitpython-htu21d
+cd ~/work/openplotter_opi5
+cp -f blinka_test.py ../work
+
+sudo reboot
+
+file blinka_test.py:
+import board
+import digitalio
+import busio
+
+print("Hello blinka!")
+
+# Try to great a Digital input
+#pin = digitalio.DigitalInOut(board.PA6) --not needed now
+print("Digital IO ok!")
+
+# Try to create an I2C device
+i2c = busio.I2C(board.I2C2_SCL_M0, board.I2C2_SDA_M0)
+print("I2C  bus 2 ok!")
+
+i2c = busio.I2C(board.SCL, board.SDA)
+print("I2C default ok!")
+
+
+# Try to create an SPI device
+#spi = busio.SPI(board.SCLK, board.MOSI, board.MISO) --not needed now
+print("SPI ok!")
+
+print("done!")
+
+!!!!!!!!!!!!!!!!!!!!!!!!!
+as orangepi run ./p13.sh in /home/orangepi/work/openplotter_opi5plus
+
+orangepi@orangepi5:~/work/openplotter_opi5$ sudo python3
+Python 3.11.2 (main, Mar 13 2023, 12:18:29) [GCC 12.2.0] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+>>> import gpiod
+>>> import board
+>>> dir(board)
+['CAN0_RX_M0', 'CAN0_TX_M0', 'CAN1_RX_M0', 'CAN1_TX_M0', 'CS0', 'CS1', 'D10', 'D11', 'D12', 'D13', 'D15', 'D16', 'D18', 'D19', 'D21', 'D22', 'D23', 'D24', 'D26', 'D27', 'D28', 'D29', 'D3', 'D31', 'D32', 'D33', 'D35', 'D36', 'D37', 'D38', 'D40', 'D5', 'D7', 'D8', 'I2C', 'I2C2_SCL_M0', 'I2C2_SCL_M4', 'I2C2_SDA_M0', 'I2C2_SDA_M4', 'I2C4_SCL_M3', 'I2C4_SDA_M3', 'I2C5_SCL_M3', 'I2C5_SDA_M3', 'I2C8_SCL_M2', 'I2C8_SDA_M2', 'MISO', 'MOSI', 'RX', 'RXD', 'SCL', 'SCLK', 'SDA', 'SPI', 'SPI0_CLK_M2', 'SPI0_CS0_M2', 'SPI0_CS1_M2', 'SPI0_MISO_M2', 'SPI0_MOSI_M2', 'SPI4_CLK_M1', 'SPI4_CLK_M2', 'SPI4_CS0_M1', 'SPI4_CS0_M2', 'SPI4_CS1_M1', 'SPI4_MISO_M1', 'SPI4_MISO_M2', 'SPI4_MOSI_M1', 'SPI4_MOSI_M2', 'TX', 'TXD', 'UART1_RX_M1', 'UART1_TX_M1', 'UART3_RX_M1', 'UART3_TX_M1', 'UART4_RX_M2', 'UART4_TX_M2', 'UART6_RX_M1', 'UART6_TX_M1', 'UART7_RX_M2', 'UART7_TX_M2', 'UART8_RX_M1', 'UART8_TX_M1', '__blinka__', '__builtins__', '__cached__', '__doc__', '__file__', '__loader__', '__name__', '__package__', '__repo__', '__spec__', '__version__', 'ap_board', 'board_id', 'detector', 'pin', 'sys']
+>>>
+
+
+
+orangepi@orangepi5-plus:~/work$ sudo python3 blinka_test.py
+Hello blinka!
+Board id is:  ORANGE_PI_5
+Digital IO ok!
+I2C  bus 2 ok!
+I2C default 2 ok!
+SPI ok!
+done!
+
+
+14. OPENPLOTTER SETTINGS
+
+!!!!!!!!! here are some comments to p14.sh  script
+
+sudo apt-get update -y
+sudo apt-get upgrade -y
+sudo apt install python3-wxgtk4.0 python3-ujson python3-pyudev vlc matchbox-keyboard dh-python python3-all -y
+sudo apt-get install debhelper dh-virtualenv -y
+cd ~/work
+git clone https://github.com/openplotter/openplotter-settings.git
+cd openplotter-settings
+sudo dpkg-buildpackage -b -j4
+cd ..
+sudo dpkg -i openplotter-settings_3.6.6-stable_all.deb
+cd ~/work/openplotter_opi5/
+sudo mv /usr/lib/python3/dist-packages/openplotterSettings/openplotterSettings.py /usr/lib/python3/dist-packages/openplotterSettings/openplotterSettings.py.orig
+sudo cp -f openplotterSettings.py /usr/lib/python3/dist-packages/openplotterSettings/openplotterSettings.py
+sudo dpkg -i openplotter-settings_4.0.10-beta_all.deb
+
+!!!!!!!!!!!!!!!!!!!!!!!!!
+as orangepi run ./p14.sh in /home/orangepi/work/openplotter_opi5plus
+
+
+open openplotter-settings 
+from Menu
+click Add Source
+click Get Candidates
+
+From openplotter-settings menu install:
+signalK-installer https://github.com/openplotter/openplotter-signalk-installer
+opencpn-installer 3.2.6 -> open and install opencpn 5.6.2 (https://github.com/openplotter/openplotter-opencpn-installer)
+sdr-vhf https://github.com/openplotter/openplotter-sdr-vhf
+
+!!!!!!!!!!!!!!!!!!!!!!!!!
+next install opencpn from flatpak option from openplotter settings
+next install signalk server from openplotter settings
+sdr-vhf fails to install due to packages missing rtl-ais and kalibrate-rtl :(
+!!!!!!!!!!!!!!!!!!!!!!!!!
+
+as per now only we have only version beta we need to install manually as above via new script
+as orangepi run ./p14A.sh in /home/orangepi/work/openplotter_opi5plus
+
+
+
+!!!!
+Add a new entry in /etc/udev/rules.d called 99-gps.rules with the following:
+KERNEL=="ttyS0", SYMLINK+="ttyOP_gps",GROUP="dialout", MODE="0660"
+reboot
+This is needed for SignalK/OpenCPN as GPS source
+!!!!
+
+
+15. OPENPLOTTER I2C
+
+!!!!!!!!! here are some comments to p15.sh, p15A.sh  script
+sudo apt install hostapd dnsmasq bridge-utils dialog usbmuxd libnss-mdns avahi-utils libavahi-compat-libdnssd-dev rfkill python3-pip chrony
+sudo apt-get install libi2c-dev
+sudo apt-get install i2c-tools python3-pip python3-dev python3-pil
+sudo apt install python3-smbus
+sudo apt install i2c-tools python3-rpi.gpio
+
+cd ~/work
+git clone https://github.com/openplotter/openplotter-i2c
+cd openplotter-i2c
+sudo dpkg-buildpackage -b -j4
+cd ..
+sudo dpkg -i openplotter-i2c_3.3.12-stable_all.deb
+sudo i2cPostInstall
+
+cd /usr/lib/python3/dist-packages/openplotterI2c
+
+root@orangepi5:/usr/lib/python3/dist-packages/openplotterI2c# mv gpio.py gpio.py.ORIG
+root@orangepi5:/usr/lib/python3/dist-packages/openplotterI2c# mv openplotterI2c.py openplotterI2c.py.ORIG
+root@orangepi5:/usr/lib/python3/dist-packages/openplotterI2c# mv openplotterI2cRead.py openplotterI2cRead.py.ORIG
+root@orangepi5:/usr/lib/python3/dist-packages/openplotterI2c# mv startup.py startup.py.ORIG
+
+copy gpio.py,openplotterI2c.py,openplotterI2cRead.py, startup.py from files.tar.gz into /usr/lib/python3/dist-packages/openplotterI2c
+
+
+
+orangepi@orangepi5:~/work$ more i2c_read.sh
+#!/usr/bin/bash
+/usr/bin/sudo /usr/bin/python3 /usr/lib/python3/dist-packages/openplotterI2c/openplotterI2cRead.py
+
+!!! 
+1. Connect I2c sensors opemplotter module and discover item there plus configure to send info to SignalK 
+2. as orangepi user run script i2c_read.sh -> it must not return prompt as running in loop :) 
+3. create service as root:
+root@orangepi5:~# cd /etc/systemd/system
+root@orangepi5:/etc/systemd/system# more openplotter-i2c-read.service
+[Unit]
+Description=OpenplotterI2CRead
+Wants=network.target
+After=network.target
+[Service]
+User=orangepi
+StandardOutput=journal
+StandardError=journal
+ExecStart=/home/orangepi/work/i2c_read.sh
+Restart=on-failure
+[Install]
+WantedBy=multi-user.target
+
+
+sudo systemctl daemon-reload
+sudo systemctl enable openplotter-i2c-read.service
+sudo systemctl start openplotter-i2c-read.service
+
+sudo pip3 install adafruit-circuitpython-ahtx0
+sudo pip3 install adafruit-circuitpython-htu21d
+
+!!!!!!!!!!!!!!!!!!!!!!!!!
+as orangepi run ./p15.sh in /home/orangepi/work/openplotter_opi5plus
+as orangepi run ./p15A.sh in /home/orangepi/work/openplotter_opi5plus
+
+open openplotter-i2c application and configure/add i2c sensors
+BMP280 - 0x77 
+AHT20  - 0x38 
+and reconnect to signal K (signalK timeout NEVER and approve)
+
+orangepi@orangepi5-plus:~/work/backup$ ps -ef|grep i2c
+orangepi    1063       1  0 15:40 ?        00:00:00 /usr/bin/bash /home/orangepi/work/i2c_read.sh
+orangepi    2649    2292  0 15:43 pts/0    00:00:00 grep i2c
+
+
+
+orangepi@orangepi5-plus:~/work/backup$ sudo systemctl status openplotter-i2c-read.service
+● openplotter-i2c-read.service - OpenplotterI2CRead
+     Loaded: loaded (/etc/systemd/system/openplotter-i2c-read.service; enabled; preset: enabled)
+     Active: active (running) since Sat 2023-11-25 15:40:47 CET; 2min 35s ago
+   Main PID: 1063 (i2c_read.sh)
+      Tasks: 3 (limit: 18529)
+     Memory: 21.7M
+        CPU: 1.741s
+     CGroup: /system.slice/openplotter-i2c-read.service
+             ├─1063 /usr/bin/bash /home/orangepi/work/i2c_read.sh
+             ├─1074 /usr/bin/sudo /usr/bin/python3 /usr/lib/python3/dist-packages/openplotterI2c/openplotterI2cRead.py
+             └─1125 /usr/bin/python3 /usr/lib/python3/dist-packages/openplotterI2c/openplotterI2cRead.py
+
+lis 25 15:40:47 orangepi5-plus systemd[1]: Started openplotter-i2c-read.service - OpenplotterI2CRead.
+lis 25 15:40:47 orangepi5-plus sudo[1074]: orangepi : PWD=/ ; USER=root ; COMMAND=/usr/bin/python3 /usr/lib/python3/dist-packages/openplotterI2c/openplotterI2cRead.py
+lis 25 15:40:47 orangepi5-plus sudo[1074]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=1000)
+lis 25 15:40:47 orangepi5-plus sudo[1325]:     root : PWD=/ ; USER=root ; COMMAND=/usr/bin/echo x
+lis 25 15:40:47 orangepi5-plus sudo[1325]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=0)
+lis 25 15:40:47 orangepi5-plus sudo[1325]: pam_unix(sudo:session): session closed for user root
+orangepi@orangepi5-plus:~/work/backup$
+
+
+16. OPENPLOTTER PYPILOT
+
+!!!!!!!!! here are some comments to p16.sh, p16A.sh  script
+
+orangepi@orangepi5:/boot$ ls -ltr /dev/ttyS*
+crw-rw---- 1 root dialout 4, 73 Nov 23 17:27 /dev/ttyS9
+crw-rw---- 1 root dialout 4, 68 Nov 23 17:27 /dev/ttyS4 >>>>> PyPilot (instead of /dev/AMA0)
+crw-rw---- 1 root dialout 4, 64 Nov 23 17:27 /dev/ttyS0 >>>>> GPS
+
+
+cd ~/work
+git clone https://github.com/openplotter/openplotter-pypilot
+
+cd openplotter-pypilot
+sudo dpkg-buildpackage -b -j4
+cd ..
+sudo dpkg -i openplotter-pypilot_3.2.13-stable_all.deb
+Run post-installation script:
+sudo pypilotPostInstall
+
+
+go to /usr/lib/python3/dist-packages/openplotterPypilot/
+as root:
+mv gpio.py gpio.py.ORIG
+mv openplotterPypilot.py openplotterPypilot.py.ORIG
+copy gpio.py,openplotterPypilot.py from files.tar.gz 
+
+
+Enable serial port pins: 16 RX/18 TX of UART4 as UART0 is used by GPS module
+enabling /boot/armbianEnv.txt add/change line:
+overlays=rk3588-uart4-m0 (as root)
+This is to motor controller for Pypilot via ttyS4
+
+reboot
+
+
+open serial application
+highligth /dev/ttyS4
+create alias /dev/ttyOP_pypilot NMEA0183 after restart add to signalK
+we also have to add this device (/dev/ttyOP_pypilot) in pypilot under serial tab
+
+
+in /usr/local/lib/python3.10/dist-packages/pypilot/
+
+sudo pip3 install adafruit-circuitpython-icm20x
+and change adress to 0x68 in adafruit_icm20x.py for ICM-20948
+
+sudo apt-get install python3-rtimulib
+
+cd ~/work
+git clone https://github.com/seandepagnier/RTIMULib2
+cd RTIMULib2/Linux/python
+sudo python3 setup.py install
+
+cd ~/work
+mkdir pypilot-update
+cd pypilot-update/
+git clone https://github.com/pypilot/pypilot
+git clone https://github.com/pypilot/pypilot_data
+cp -rv pypilot_data/* pypilot
+
+
+
+orangepi@orangepi5:~/work/pypilot-update$ find . -type f -exec grep -H 'ttyAMA0' {} \;
+./pypilot/pypilot/serialprobe.py:    if device == '/dev/ttyAMA0' and name != 'servo':
+./pypilot/pypilot/arduino_servo/test.cpp:    const char device[] = "/dev/ttyAMA0";
+./pypilot/arduino/motor/Makefile-arduino-1.8:#DEVICE = /dev/ttyAMA0
+./pypilot/arduino/motor/Makefile:#DEVICE = /dev/ttyAMA0
+./pypilot/arduino/hat/Makefile-old:#DEVICE = /dev/ttyAMA0
+./pypilot/arduino/hat/Makefile:#DEVICE = /dev/ttyAMA0
+./pypilot/arduino/rudderfeedback/Makefile:#DEVICE = /dev/ttyAMA0
+
+change everywhere ttyAMA0 -> ttyS4
+
+and change in ./pypilot/pypilot/boatimu.py 
+ 55         SETTINGS_FILE = "/usr/local/lib/python3.10/dist-packages/pypilot/RTIMULib"
+
+cd pypilot
+sudo python3 setup.py install
+
+
+
+cd /usr/local/lib/python3.11/dist-packages/pypilot/
+and check in boatimu.py:
+ 55         SETTINGS_FILE = "/usr/local/lib/python3.11/dist-packages/pypilot/RTIMULib"
+
+sudo reboot
+
+as root user run: pypilot_boatimu and close it
+in /usr/local/lib/python3.11/dist-packages/pypilot/RTIMULib.ini set:
+I2CBus=2
+
+open pupilot appllication and approve access to SignalK, ICM module should be dteceted 
+
+!!!!!!!!!!!!!!!!!!!!!!!!!
+as orangepi run ./p16.sh in /home/orangepi/work/openplotter_opi5plus
+
+
+!!!!!!!!! here are some comments to p17.sh  script
+
+GQRX is installed (point 10)
+AIS catcher installed (point 11) -> we will use the service aiscatcher
+SDP++ installed (point 9)
+
+cd /usr/lib/python3/dist-packages/openplotterSdrVhf
+
+as root:
+mv service.py service.py.ORIG
+mv startup.py startup.py.ORIG
+mv openplotterSdrVhf.py openplotterSdrVhf.py.ORIG
+
+!!!!!!!!!!!!!!!!!!!!!!!!!
+as orangepi run ./p17.sh in /home/orangepi/work/openplotter_opi5plus
+
+
+18. OTHER
+
+if in some points installation fails please re-try scripts execution :)
+
+Below just to consier - not included in installation :)
+
+good to run block.sh to avoid future changes in openplotter packages!
+
+!!! issue with CMA
+extraargs=cma=... sunxi_ve_mem_reserve=... in ArmbianEnv.txt
+extraargs=cma=32M or higher 64M
+
+
+!!! bluetooth device
+armbian--config -> install BT support
+enable firmware and kernel upgrdes 
+
+hciconfig -a 
+systemctl status bluetooth
+ rfkill unblock bluetooth 
+ rfkill list all
+sudo systemctl status bluetooth.service
+
+!!! music player
+sudo add-apt-repository ppa:ubuntuhandbook1/apps
+sudo apt-get update
+sudo apt-get install rhythmbox
+
+!!!
+copy+paste issue in vi/vim with a mouse
+:set mouse=r
