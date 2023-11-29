@@ -165,6 +165,23 @@ def main():
 						if i2c_sensors[i]['address']:
 							instances.append({'name':i,'type':'AHT20','tick':[now,now],'sensor':i2c_sensors[i],'object':AHTx0(muxInstances[i2c_sensors[i]['address']][i2c_sensors[i]['channel']-1])})
 
+				elif i2c_sensors[i]['type'] == 'VCNL4020':
+					from adafruit_vcnl4020 import VCNL4020
+					if i2c_sensors[i]['channel'] == 0:
+						if i2c_sensors[i]['address']:
+							instances.append({'name': i, 'type': 'VCNL4020', 'tick': [now, now], 'sensor': i2c_sensors[i],'object': VCNL4020(i2c, address=int(i2c_sensors[i]['address'], 16))})
+					else:
+						if i2c_sensors[i]['address']:
+							instances.append({'name': i, 'type': 'VCNL4020', 'tick': [now, now], 'sensor': i2c_sensors[i],'object': VCNL4020(muxInstances[i2c_sensors[i]['address']][i2c_sensors[i]['channel'] - 1])})
+				elif i2c_sensors[i]['type'] == 'VCNL4040':
+					from adafruit_vcnl4040 import VCNL4040
+					if i2c_sensors[i]['channel'] == 0:
+						if i2c_sensors[i]['address']:
+							instances.append({'name': i, 'type': 'VCNL4040', 'tick': [now, now], 'sensor': i2c_sensors[i],'object': VCNL4040(i2c, address=int(i2c_sensors[i]['address'], 16))})
+					else:
+						if i2c_sensors[i]['address']:
+							instances.append({'name': i, 'type': 'VCNL4040', 'tick': [now, now], 'sensor': i2c_sensors[i],'object': VCNL4040(muxInstances[i2c_sensors[i]['address']][i2c_sensors[i]['channel'] - 1])})
+
 				elif i2c_sensors[i]['type'] == 'LPS3X':
 					import adafruit_lps35hw
 					if i2c_sensors[i]['channel'] == 0:
@@ -521,6 +538,70 @@ def main():
 										try:temperatureValue2 = float(temperatureValue)+273.15
 										except: temperatureValue2 = ''
 										Erg = getPaths(Erg,temperatureValue,temperatureValue2,temperatureKey,temperatureOffset,temperatureFactor,temperatureRaw)
+										instances[index]['tick'][1] = time.time()
+
+							elif i['type'] == 'VCNL4020':
+								proximityKey = i['sensor']['data'][0]['SKkey']
+								illuminanceKey = i['sensor']['data'][1]['SKkey']
+								if proximityKey:
+									proximityRaw = i['sensor']['data'][0]['raw']
+									proximityRate = i['sensor']['data'][0]['rate']
+									proximityOffset = i['sensor']['data'][0]['offset']
+									proximityFactor = i['sensor']['data'][0]['factor']
+									tick0 = time.time()
+									if tick0 - i['tick'][0] > proximityRate:
+										try:
+											proximityValue = round(i['object'].proximity, 2)
+										except:
+											proximityValue = i['object'].proximity
+										proximityValue2 = proximityValue
+										Erg = getPaths(Erg, proximityValue, proximityValue2, proximityKey,proximityOffset, proximityFactor, proximityRaw)
+										instances[index]['tick'][0] = time.time()
+								if illuminanceKey:
+									illuminanceRaw = i['sensor']['data'][1]['raw']
+									illuminanceRate = i['sensor']['data'][1]['rate']
+									illuminanceOffset = i['sensor']['data'][1]['offset']
+									illuminanceFactor = i['sensor']['data'][1]['factor']
+									tick0 = time.time()
+									if tick0 - i['tick'][1] > illuminanceRate:
+										try:
+											illuminanceValue = round(i['object'].lux, 2)
+										except:
+											illuminanceValue = i['object'].lux
+										illuminanceValue2 = illuminanceValue
+										Erg = getPaths(Erg, illuminanceValue, illuminanceValue2, illuminanceKey,illuminanceOffset, illuminanceFactor, illuminanceRaw)
+										instances[index]['tick'][1] = time.time()
+
+							elif i['type'] == 'VCNL4040':
+								proximityKey = i['sensor']['data'][0]['SKkey']
+								illuminanceKey = i['sensor']['data'][1]['SKkey']
+								if proximityKey:
+									proximityRaw = i['sensor']['data'][0]['raw']
+									proximityRate = i['sensor']['data'][0]['rate']
+									proximityOffset = i['sensor']['data'][0]['offset']
+									proximityFactor = i['sensor']['data'][0]['factor']
+									tick0 = time.time()
+									if tick0 - i['tick'][0] > proximityRate:
+										try:
+											proximityValue = round(i['object'].proximity, 2)
+										except:
+											proximityValue = i['object'].proximity
+										proximityValue2 = proximityValue
+										Erg = getPaths(Erg, proximityValue, proximityValue2, proximityKey,proximityOffset, proximityFactor, proximityRaw)
+										instances[index]['tick'][0] = time.time()
+								if illuminanceKey:
+									illuminanceRaw = i['sensor']['data'][1]['raw']
+									illuminanceRate = i['sensor']['data'][1]['rate']
+									illuminanceOffset = i['sensor']['data'][1]['offset']
+									illuminanceFactor = i['sensor']['data'][1]['factor']
+									tick0 = time.time()
+									if tick0 - i['tick'][1] > illuminanceRate:
+										try:
+											illuminanceValue = round(i['object'].lux, 2)
+										except:
+											illuminanceValue = i['object'].lux
+										illuminanceValue2 = illuminanceValue
+										Erg = getPaths(Erg, illuminanceValue, illuminanceValue2, illuminanceKey,illuminanceOffset, illuminanceFactor, illuminanceRaw)
 										instances[index]['tick'][1] = time.time()
 
 							elif i['type'] == 'LPS3X':

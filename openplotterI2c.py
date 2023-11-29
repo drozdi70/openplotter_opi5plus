@@ -50,6 +50,8 @@ class MyFrame(wx.Frame):
 		self.i2c_sensors_def['LPS3X'] = {'magnitudes': [_('pressure'),_('temperature')], 'SKkeys': ['environment.outside.pressure',''], 'multiplexing':True}
 		self.i2c_sensors_def['MS5607-02BA03'] = {'magnitudes': [_('pressure'),_('temperature')], 'SKkeys': ['environment.outside.pressure',''], 'multiplexing':False}
 		self.i2c_sensors_def['AHT20'] = {'magnitudes': [_('humidity'),_('temperature')], 'SKkeys': ['environment.inside.relativeHumidity','environment.inside.temperature'], 'multiplexing':True}
+		self.i2c_sensors_def['VCNL4020'] = {'magnitudes': [_('proximity'), _('illuminance')],'SKkeys': ['environment.outside.proximity','environment.outside.illuminance'], 'multiplexing': True}
+		self.i2c_sensors_def['VCNL4040'] = {'magnitudes': [_('proximity'), _('illuminance')],'SKkeys': ['environment.outside.proximity','environment.outside.illuminance'], 'multiplexing': True}
 
 		wx.Frame.__init__(self, None, title='I2C '+version, size=(800,444))
 		self.SetFont(wx.Font(10, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL))
