@@ -8,9 +8,9 @@ sudo add-apt-repository ppa:liujianfeng1994/rockchip-multimedia
 sudo apt update -y
 sudo apt dist-upgrade -y
 sudo apt install mali-g610-firmware rockchip-multimedia-config -y
-sudo apt-get install armbian-firmware-full -y
+sudo apt-get install firmware-linux -y
 sudo apt update && sudo apt upgrade -y
-sudo apt-get autoremove-Y
+sudo apt-get autoremove -y
 sudo apt clean -y
 sudo apt-get autoclean -y
 sudo apt-get full-upgrade -y
