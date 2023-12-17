@@ -19,7 +19,7 @@ sudo pip3 install adafruit-blinka
 sudo pip3 install --upgrade adafruit-blinka adafruit-platformdetect 
 #sudo python3 -m pip install --force-reinstall adafruit-blinka
 sudo pip3 install adafruit-circuitpython-ahtx0 
-sudo pip3 install adafruit-circuitpython-htu21
+sudo pip3 install adafruit-circuitpython-htu21d
 sudo pip3 install adafruit-circuitpython-vcnl4040
 cd ~/work/openplotter_opi5plus
 cp -f blinka_test.py ..
