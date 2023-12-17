@@ -15,7 +15,7 @@ make -j4
 sudo make install
 sudo ldconfig
 cd ~/work
-git clone git://git.osmocom.org/gr-osmosdr
+git clone https://gitea.osmocom.org/sdr/gr-osmosdr
 cd gr-osmosdr/
 mkdir build
 cd build/
