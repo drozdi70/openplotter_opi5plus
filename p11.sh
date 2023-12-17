@@ -8,7 +8,7 @@ make -j4
 sudo make install
 sudo ldconfig
 cd ~/work/openplotter_opi5plus
-cp aiscatcher.conf.rtl ~/work/aiscacther.conf
+cp aiscatcher.conf.rtl ~/work/aiscatcher.conf
 cp start-ais.sh ~/work/
 sudo cp aiscatcher.service /etc/systemd/system/
 sudo systemctl daemon-reload
