@@ -2,6 +2,7 @@ sudo rm /usr/lib/python3.*/EXTERNALLY-MANAGED
 sudo apt install flatpak fakeroot npm -y
 sudo apt install nodejs -y
 cd ~/work
+sudo rm -rf openplotter-opencpn-installer
 git clone https://github.com/openplotter/openplotter-opencpn-installer.git
 cd openplotter-opencpn-installer
 dpkg-buildpackage -b
@@ -11,6 +12,7 @@ sudo opencpnPostInstall
 #
 sudo apt install libnss-mdns avahi-utils libavahi-compat-libdnssd-dev -y
 cd ~/work
+sudo rm -rf openplotter-signalk-installer/
 git clone https://github.com/openplotter/openplotter-signalk-installer
 cd openplotter-signalk-installer
 dpkg-buildpackage -b
@@ -19,6 +21,7 @@ sudo dpkg -i openplotter-signalk-installer_3.2.0-stable_all.deb
 sudo signalkPostInstall
 #
 cd ~/work
+sudo rm -rf kalibrate-rtl/
 git clone https://github.com/steve-m/kalibrate-rtl.git
 sudo apt-get install libtool libfftw3-dev -y
 cd kalibrate-rtl
@@ -28,6 +31,7 @@ make
 sudo make install
 sudo ldconfig
 cd ~/work
+sudo rm -rf rtl-ais/
 git clone https://github.com/dgiardini/rtl-ais
 cd rtl-ais
 make
@@ -37,6 +41,7 @@ sudo ldconfig
 sudo apt install gnome-menus desktop-file-utils mailcap -y
 sudo apt install kalibrate-rtl rtl-ais rtl-sdr python3-pip -y
 cd  ~/work
+sudo rm -rf openplotter-sdr-vhf
 git clone https://github.com/openplotter/openplotter-sdr-vhf
 cd openplotter-sdr-vhf
 dpkg-buildpackage -b
