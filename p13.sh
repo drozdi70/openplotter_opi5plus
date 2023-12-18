@@ -1,6 +1,6 @@
 sudo apt-get update -y
 sudo apt-get upgrade -y
-sudo pip3 install --upgrade setuptools 
+sudo pip3 install --upgrade setuptools -y 
 sudo apt-get install -y python3-smbus python3-dev i2c-tools
 sudo adduser orangepi i2c
 sudo apt-get install -y python3 
@@ -23,8 +23,8 @@ sudo pip3 install adafruit-circuitpython-htu21d
 sudo pip3 install adafruit-circuitpython-vcnl4040
 cd ~/work/openplotter_opi5plus
 cp -f blinka_test.py ..
-sudo mv /usr/local/lib/python3.11/dist-packages/adafruit_blinka/board/orangepi/orangepi5.py /usr/local/lib/python3.11/dist-packages/adafruit_blinka/board/orangepi/orangepi5.py.org
-sudo cp -f orangepi5plus.py  /usr/local/lib/python3.11/dist-packages/adafruit_blinka/board/orangepi/orangepi5.py
+sudo mv /usr/local/lib/python3.11/dist-packages/adafruit_blinka/board/orangepi/orangepi5plus.py /usr/local/lib/python3.11/dist-packages/adafruit_blinka/board/orangepi/orangepi5plus.py.org
+sudo cp -f orangepi5plus.py  /usr/local/lib/python3.11/dist-packages/adafruit_blinka/board/orangepi/orangepi5plus.py
 sudo mv /usr/local/lib/python3.11/dist-packages/adafruit_blinka/microcontroller/rockchip/rk3588/pin.py /usr/local/lib/python3.11/dist-packages/adafruit_blinka/microcontroller/rockchip/rk3588/pin.py.org
 sudo cp -p pin5plus.py /usr/local/lib/python3.11/dist-packages/adafruit_blinka/microcontroller/rockchip/rk3588/pin.py
 sudo reboot
